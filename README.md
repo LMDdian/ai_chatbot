@@ -1,44 +1,11 @@
 # ai-chatbot
 
-This template should help get you started developing with Vue 3 in Vite.
+这是一个AI对话机器人（中英双语版），通过星火认知大模型API实现AI对话，采用vue-i8n实现中英双语场景适配。
 
-## Recommended IDE Setup
+<img width="2560" height="1440" alt="屏幕截图 2026-01-30 005614" src="https://github.com/user-attachments/assets/1ab41034-8c7b-4161-ac98-66af23dc7a5f" />
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+<img width="2560" height="1440" alt="屏幕截图 2026-01-30 005209" src="https://github.com/user-attachments/assets/a58728e6-5d6c-494c-a8d8-0e68bbf61ae4" />
 
-## Recommended Browser Setup
+<img width="2560" height="1440" alt="屏幕截图 2026-01-30 005405" src="https://github.com/user-attachments/assets/f4132598-f708-4292-8d36-470018037a25" />
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
-npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
-npm run dev
-```
-
-### Compile and Minify for Production
-
-```sh
-npm run build
-```
-
-### Run Unit Tests with [Vitest](https://vitest.dev/)
-
-```sh
-npm run test:unit
-```
+<img width="2560" height="1440" alt="屏幕截图 2026-01-30 005014" src="https://github.com/user-attachments/assets/e6ff0d74-15fc-4927-b133-c540535e2e45" />
