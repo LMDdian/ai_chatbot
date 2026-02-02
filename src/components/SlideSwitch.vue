@@ -6,45 +6,42 @@ const locale = defineModel<string>('locale', { required: true })
 </script>
 
 <template>
-	<div class="lang-toggle">
-		<div
-		class="toggle-switch"
+	<div
+		class="slide-switch"
 		:class="{ 'en-mode': locale === 'en' }"
 		@click="toggleLanguage"
 		role="switch"
 		:aria-checked="locale === 'en'"
 		:title="locale === 'zh' ? '切换到英文' : 'Switch to Chinese'"
-		>
+	>
 		<div class="toggle-track">
 			<span class="toggle-label zh">中</span>
 			<span class="toggle-label en">EN</span>
 		</div>
 		<div class="toggle-thumb"></div>
-		</div>
 	</div>
 </template>
 
 <style scoped>
 /* 语言切换滑块样式 */
-.lang-toggle {
-  display: flex;
-  align-items: center;
-}
-
-.toggle-switch {
+.slide-switch {
   position: relative;
+
   width: 64px;
   height: 32px;
   background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
   border-radius: 50px;
+
   cursor: pointer;
+
   transition: all 0.3s ease;
+
   box-shadow: 0 2px 10px rgba(37, 99, 235, 0.2);
+
   overflow: hidden;
 }
-
-.toggle-switch.en-mode {
-  background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%);
+.slide-switch.en-mode {
+  background: linear-gradient(180deg, #d8304c 0%, #de3364 100%);
 }
 
 .toggle-track {
@@ -53,34 +50,33 @@ const locale = defineModel<string>('locale', { required: true })
   left: 0;
   right: 0;
   bottom: 0;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   padding: 0 10px;
 }
-
-.toggle-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: white;
-  transition: opacity 0.3s ease;
-  user-select: none;
-  z-index: 1;
-}
+    .toggle-track .toggle-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: white;
+      transition: opacity 0.3s ease;
+      user-select: none;
+      z-index: 1;
+    }
 
 .toggle-label.zh {
   opacity: 1;
 }
-
-.toggle-switch.en-mode .toggle-label.zh {
+.slide-switch.en-mode .toggle-label.zh {
   opacity: 0.6;
 }
 
 .toggle-label.en {
   opacity: 0.6;
 }
-
-.toggle-switch.en-mode .toggle-label.en {
+.slide-switch.en-mode .toggle-label.en {
   opacity: 1;
 }
 
@@ -88,25 +84,29 @@ const locale = defineModel<string>('locale', { required: true })
   position: absolute;
   top: 4px;
   left: 4px;
+
   width: 24px;
   height: 24px;
   background: white;
   border-radius: 50%;
+
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+
   transition: transform 0.3s ease;
+  
   z-index: 2;
 }
 
-.toggle-switch.en-mode .toggle-thumb {
+.slide-switch.en-mode .toggle-thumb {
   transform: translateX(32px);
 }
 
 /* 悬停效果 */
-.toggle-switch:hover {
+.slide-switch:hover {
   transform: scale(1.05);
 }
 
-.toggle-switch:active {
+.slide-switch:active {
   transform: scale(0.95);
 }
 </style>

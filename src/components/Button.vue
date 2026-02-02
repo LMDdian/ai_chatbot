@@ -1,4 +1,3 @@
-<!-- Button.vue - 通用按钮组件 -->
 <script setup>
 import { computed } from 'vue'
 
@@ -67,7 +66,7 @@ const buttonClass = computed(() => {
     :title="title"
     @click="$emit('click', $event)"
   >
-    <slot />
+    <slot></slot>
   </button>
 </template>
 

@@ -1,4 +1,3 @@
-<!-- Teleport.vue - 设置弹窗组件 -->
 <script setup>
 import { computed } from 'vue'
 import Button from './Button.vue'
