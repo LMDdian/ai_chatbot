@@ -59,7 +59,6 @@ watch(
 
 <style scoped>
 .chat-inner {
-  max-width: 980px;
   margin: 0 auto;
 }
 

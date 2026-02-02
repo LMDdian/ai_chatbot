@@ -530,9 +530,6 @@ watch(
         :placeholder="t('chat.inputPlaceholder')"
         @keydown="onKeydown"
       />
-      <Button variant="primary" :disabled="!canSend" @click="send">
-        {{ ui.sending ? t('chat.sending') : t('chat.send') }}
-      </Button>
     </footer>
 
     <!-- 设置弹窗 -->
@@ -552,8 +549,10 @@ watch(
 <style scoped>
 .page {
   height: 100vh;
+
   display: flex;
   flex-direction: column;
+
   background:
     radial-gradient(1200px 600px at 20% 10%, #e9f2ff 0%, transparent 60%),
     radial-gradient(900px 500px at 80% 0%, #ffeef1 0%, transparent 55%),
@@ -561,89 +560,87 @@ watch(
   color: #0f172a;
 }
 
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
 
-.brand .title {
-  font-weight: 700;
-  letter-spacing: 0.2px;
-}
-.brand .subtitle {
-  margin-top: 2px;
-  font-size: 12px;
-  color: rgba(15, 23, 42, 0.6);
-}
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      
+      padding: 14px 16px;
 
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    }
 
-.lang-toggle {
-  display: flex;
-  gap: 4px;
-}
+        /* .brand {
+        }*/
+            .brand .title {
+              font-weight: 700;
+              letter-spacing: 0.2px;
+            }
+            .brand .subtitle {
+              margin-top: 2px;
+              font-size: 12px;
+              color: rgba(15, 23, 42, 0.6);
+            }
 
-.btn.small {
-  height: 32px;
-  padding-inline: 10px;
-  font-size: 12px;
-}
+        .topbar-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
 
-.lang-toggle .btn.active {
-  border-color: rgba(37, 99, 235, 0.6);
-  background: rgba(37, 99, 235, 0.08);
-}
+    .alert {
+      margin: 10px 16px 0 16px;
+      padding: 10px 12px;
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      border-radius: 12px;
+      color: #991b1b;
+      font-size: 13px;
+    }
+    
+    .chat {
+      flex: 1;
+      overflow: auto;
+      padding: 14px 0px;
+    }
 
-.alert {
-  margin: 10px 16px 0 16px;
-  padding: 10px 12px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  border-radius: 12px;
-  color: #991b1b;
-  font-size: 13px;
-}
+    .composer {
+      display: flex;
 
-.chat {
-  flex: 1;
-  overflow: auto;
-  padding: 14px 16px;
-}
+      padding: 12px 16px 16px 16px;
 
-.composer {
-  display: flex;
-  gap: 10px;
-  padding: 12px 16px 16px 16px;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-}
-.input {
-  flex: 1;
-  resize: none;
-  min-height: 44px;
-  max-height: 140px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  outline: none;
-  background: rgba(255, 255, 255, 0.9);
-}
-.input:focus {
-  border-color: rgba(37, 99, 235, 0.65);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
-}
+      border-top: 1px solid rgba(15, 23, 42, 0.08);
+
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+    }
+        .input {
+          flex: 1;
+
+          resize: none;
+
+          min-height: 44px;
+          max-height: 140px;
+
+          padding: 10px 12px;
+
+          border: 1px solid rgba(15, 23, 42, 0.14);
+          border-radius: 14px;
+          
+          outline: none;  /* 去除默认的聚焦边框 配合focus */
+
+          background: rgba(255, 255, 255, 0.9);
+        }
+        .input:focus {
+          border-color: rgba(37, 99, 235, 0.65);
+          box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+        }
 
 </style>
