@@ -4,7 +4,7 @@ const messages = {
   zh: {
     app: {
       title: '聊天机器人',
-      subtitle: 'Spark WebSocket：wss://spark-api.xf-yun.com/v1.1/chat',
+      subtitle: '采用星火大模型API接口。',
     },
     topbar: {
       settings: '设置',
@@ -52,7 +52,7 @@ const messages = {
   en: {
     app: {
       title: 'AI Chatbot',
-      subtitle: 'Spark WebSocket: wss://spark-api.xf-yun.com/v1.1/chat',
+      subtitle: 'Translate into English using the Spark Large Model API interface.',
     },
     topbar: {
       settings: 'Settings',

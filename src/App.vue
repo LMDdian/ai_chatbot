@@ -3,23 +3,78 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SparkWSClient } from './services/sparkWs'
-import Messages from './component/Messages.vue'
+import Messages from './components/Messages.vue'
+import SlideSwitch from './components/SlideSwitch.vue'
+import Button from './components/Button.vue'
+import SettingsModal from './components/SettingModal.vue'
 
+// ==================== 常量定义 ====================
 const STORAGE_KEY = 'spark_settings_v1'
 
+// ==================== 工具函数 ====================
+/**
+ * 获取语言键值（zh 或 en）
+ */
+function getLangKey(lang) {
+  if (!lang) return 'en'
+  return lang === 'zh' || lang === 'zh-CN' ? 'zh' : 'en'
+}
+
+/**
+ * 生成唯一ID
+ */
+function generateId() {
+  return crypto?.randomUUID?.() || String(Date.now() + Math.random())  // 兼容设置
+}
+
+/**
+ * 创建系统消息
+ */
+function createSystemMessage(content, options = {}) {
+  return {
+    id: generateId(),
+    role: 'system',
+    content,
+    ts: Date.now(),
+    isSystem: true,
+    aiName: t('chat.robot'),
+    lang: locale.value,
+    ...options,
+  }
+}
+
+/**
+ * 创建初始系统消息
+ */
+function createInitialSystemMessage() {
+  return {
+    id: generateId(),
+    role: 'system',
+    content: t('chat.initialAssistant'),
+    ts: Date.now(),
+    aiName: t('chat.robot'),
+    lang: locale.value,
+  }
+}
+
+// ==================== 响应式状态 ====================
+// API配置和系统提示词
 const settings = reactive({
   appId: '',
   apiSecret: '',
   apiKey: '',
+  apiName: '李白',
   systemPrompt: '你现在扮演李白，你豪情万丈，狂放不羁；接下来请用李白的口吻和用户对话。',
 })
 
+// UI状态
 const ui = reactive({
-  settingsOpen: false,
-  sending: false,
-  error: '',
+  settingsOpen: false,    // 设置弹窗是否打开
+  sending: false,         // 是否正在发送消息
+  error: '',              // 错误信息
 })
 
+// 角色配置（中英文）
 const roleConfig = ref({
   zh: {
     name: '李太白',
@@ -32,23 +87,26 @@ const roleConfig = ref({
   },
 })
 
+// 国际化
 const { t, locale } = useI18n()
-const aiName = ref(
-  roleConfig.value[locale.value === 'zh' || locale.value === 'zh-CN' ? 'zh' : 'en'].name,
-)
 
+// AI名称（根据当前语言初始化）
+const aiName = ref(roleConfig.value[getLangKey(locale.value)].name)
+
+// 输入框文本
 const inputText = ref('')
-const messages = ref([
-  {
-    id: crypto?.randomUUID?.() || String(Date.now()),
-    role: 'system',
-    content: t('chat.initialAssistant'),
-    ts: Date.now(),
-    aiName: t('chat.robot'),
-    lang: locale.value,
-  },
-])
 
+// 消息列表
+const messages = ref([createInitialSystemMessage()])
+
+// DOM引用
+const listEl = ref(null)
+const clientRef = ref(null)
+
+// ==================== 计算属性 ====================
+/**
+ * 消息显示名称映射
+ */
 const messageDisplays = computed(() => {
   const displays = {}
   messages.value.forEach((msg) => {
@@ -57,13 +115,17 @@ const messageDisplays = computed(() => {
   return displays
 })
 
-const listEl = ref(null)
-const clientRef = ref(null)
-
+/**
+ * 是否可以发送消息
+ */
 const canSend = computed(() => {
   return inputText.value.trim().length > 0 && !ui.sending
 })
 
+// ==================== 设置管理 ====================
+/**
+ * 加载设置（从localStorage）
+ */
 function loadSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -71,11 +133,13 @@ function loadSettings() {
       applyRoleConfig()
       return
     }
+
     const parsed = JSON.parse(raw)
     settings.appId = parsed?.appId || ''
     settings.apiSecret = parsed?.apiSecret || ''
     settings.apiKey = parsed?.apiKey || ''
-    const currentLang = locale.value === 'zh' || locale.value === 'zh-CN' ? 'zh' : 'en'
+
+    const currentLang = getLangKey(locale.value)
     if (parsed?.systemPrompt) {
       settings.systemPrompt = parsed.systemPrompt
     } else {
@@ -88,8 +152,11 @@ function loadSettings() {
   }
 }
 
+/**
+ * 应用角色配置（根据当前语言）
+ */
 function applyRoleConfig() {
-  const currentLang = locale.value === 'zh' || locale.value === 'zh-CN' ? 'zh' : 'en'
+  const currentLang = getLangKey(locale.value)
   const config = roleConfig.value[currentLang]
 
   // 如果系统提示词为空或者是默认的，则应用新的角色配置
@@ -107,8 +174,13 @@ function applyRoleConfig() {
   }
 }
 
+/**
+ * 保存设置（到localStorage）
+ */
 function saveSettings() {
   ui.error = ''
+
+  // 验证必填字段
   if (!settings.appId.trim() || !settings.apiSecret.trim() || !settings.apiKey.trim()) {
     ui.error = t('error.fillAllKeys')
     return
@@ -119,6 +191,7 @@ function saveSettings() {
   const systemPromptChanged = oldSettings.systemPrompt !== settings.systemPrompt.trim()
   const aiNameChanged = oldSettings.aiName !== aiName.value
 
+  // 保存到localStorage
   localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify({
@@ -136,23 +209,16 @@ function saveSettings() {
   // 如果修改了系统提示词或AI名称，清空历史对话
   if (systemPromptChanged || aiNameChanged) {
     clearChatHistory()
-    // 添加一条系统消息说明角色已更新
-    const message = {
-      id: crypto?.randomUUID?.() || String(Date.now()),
-      role: 'system',
-      content:
-        locale.value === 'zh' || locale.value === 'zh-CN'
-          ? `AI角色已更新为${aiName.value}，历史对话已清空`
-          : `AI role updated to ${aiName.value}, chat history cleared`,
-      ts: Date.now(),
-      isSystem: true,
-      aiName: null,
-      lang: locale.value,
-    }
+    const message = createSystemMessage(
+      getLangKey(locale.value) === 'zh'
+        ? `AI角色已更新为${aiName.value}，历史对话已清空`
+        : `AI role updated to ${aiName.value}, chat history cleared`,
+    )
     messages.value.push(message)
     scrollToBottom()
   }
 
+  // 关闭旧的WebSocket连接
   try {
     clientRef.value?.close?.()
   } catch {
@@ -161,28 +227,44 @@ function saveSettings() {
   clientRef.value = null
 }
 
-function openSettings() {
-  ui.error = ''
-  ui.settingsOpen = true
-}
-
-function closeSettings() {
-  ui.error = ''
-  ui.settingsOpen = false
-}
-
+/**
+ * 重置为默认角色
+ */
 function resetToDefaultRole() {
-  const currentLang = locale.value === 'zh' || locale.value === 'zh-CN' ? 'zh' : 'en'
+  const currentLang = getLangKey(locale.value)
   const config = roleConfig.value[currentLang]
 
   settings.systemPrompt = config.defaultPrompt
   aiName.value = config.name
 }
 
-function toggleLanguage() {
-  locale.value = locale.value === 'zh' || locale.value === 'zh-CN' ? 'en' : 'zh'
+// ==================== UI控制 ====================
+/**
+ * 打开设置弹窗
+ */
+function openSettings() {
+  ui.error = ''
+  ui.settingsOpen = true
 }
 
+/**
+ * 关闭设置弹窗
+ */
+function closeSettings() {
+  ui.error = ''
+  ui.settingsOpen = false
+}
+
+/**
+ * 切换语言
+ */
+function toggleLanguage() {
+  locale.value = getLangKey(locale.value) === 'zh' ? 'en' : 'zh'
+}
+
+/**
+ * 滚动到底部
+ */
 async function scrollToBottom() {
   await nextTick()
   await nextTick() // 双重nextTick确保DOM完全更新
@@ -191,18 +273,29 @@ async function scrollToBottom() {
   el.scrollTop = el.scrollHeight
 }
 
+// ==================== WebSocket客户端管理 ====================
+/**
+ * 确保WebSocket客户端已创建
+ */
 function ensureClient() {
   if (clientRef.value) return clientRef.value
+
   clientRef.value = new SparkWSClient({
     appId: settings.appId.trim(),
     apiKey: settings.apiKey.trim(),
     apiSecret: settings.apiSecret.trim(),
     uid: settings.appId.trim(),
   })
+
   return clientRef.value
 }
 
+// ==================== 消息处理 ====================
+/**
+ * 构建发送给服务器的消息历史
+ */
 function buildTextHistoryForServer({ maxTurns = 10 } = {}) {
+  // 过滤出有效的用户和助手消息
   const core = messages.value
     .filter(
       (m) =>
@@ -210,9 +303,11 @@ function buildTextHistoryForServer({ maxTurns = 10 } = {}) {
     )
     .map((m) => ({ role: m.role, content: m.content }))
 
+  // 取最近的消息（最多maxTurns轮对话）
   const maxItems = Math.max(2, maxTurns * 2)
   const sliced = core.slice(-maxItems)
 
+  // 添加系统提示词
   const prompt = settings.systemPrompt?.trim()
   if (!prompt) {
     return sliced
@@ -226,22 +321,30 @@ function buildTextHistoryForServer({ maxTurns = 10 } = {}) {
   return [system, ...sliced]
 }
 
+/**
+ * 发送消息
+ */
 async function send() {
   ui.error = ''
   const text = inputText.value.trim()
+
+  // 验证输入和状态
   if (!text || ui.sending) return
 
+  // 验证API配置
   if (!settings.appId.trim() || !settings.apiSecret.trim() || !settings.apiKey.trim()) {
     ui.error = t('error.needKeysFirst')
     ui.settingsOpen = true
     return
   }
 
+  // 清空输入框并设置发送状态
   inputText.value = ''
   ui.sending = true
 
+  // 创建用户消息
   const userMsg = {
-    id: crypto?.randomUUID?.() || String(Date.now() + Math.random()),
+    id: generateId(),
     role: 'user',
     content: text,
     ts: Date.now(),
@@ -250,8 +353,9 @@ async function send() {
   }
   messages.value.push(userMsg)
 
+  // 创建助手消息占位符
   const assistantMsg = {
-    id: crypto?.randomUUID?.() || String(Date.now() + Math.random()),
+    id: generateId(),
     role: 'assistant',
     content: '',
     ts: Date.now(),
@@ -262,9 +366,11 @@ async function send() {
   await scrollToBottom()
 
   try {
+    // 获取客户端并构建历史
     const client = ensureClient()
     const history = buildTextHistoryForServer({ maxTurns: 10 })
 
+    // 发送消息并流式接收响应
     await client.sendText({
       text: history,
       domain: 'lite',
@@ -278,6 +384,7 @@ async function send() {
       },
     })
   } catch (e) {
+    // 错误处理
     const msg = e instanceof Error ? e.message : '请求失败'
     ui.error = msg
     assistantMsg.content = assistantMsg.content || `（出错）${msg}`
@@ -287,6 +394,9 @@ async function send() {
   }
 }
 
+/**
+ * 键盘事件处理（Enter发送，Shift+Enter换行）
+ */
 function onKeydown(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
@@ -294,55 +404,57 @@ function onKeydown(e) {
   }
 }
 
+/**
+ * 清空对话历史
+ */
 function clearChatHistory(showMessage = false) {
-  // 清空所有消息，只保留初始的助手消息
-  const currentLang = locale.value === 'zh' || locale.value === 'zh-CN' ? 'zh' : 'en'
-  const config = roleConfig.value[currentLang] || roleConfig.value.en
-
-  messages.value = [
-    {
-      id: crypto?.randomUUID?.() || String(Date.now()),
-      role: 'system',
-      content: t('chat.initialAssistant'),
-      ts: Date.now(),
-      aiName: t('chat.robot'),
-      lang: locale.value,
-    },
-  ]
+  // 重置消息列表，只保留初始系统消息
+  messages.value = [createInitialSystemMessage()]
 
   // 如果是手动清空，显示提示消息
   if (showMessage) {
-    const message = {
-      id: crypto?.randomUUID?.() || String(Date.now()),
-      role: 'system',
-      content:
-        locale.value === 'zh' || locale.value === 'zh-CN'
-          ? '对话历史已清空'
-          : 'Chat history cleared',
-      ts: Date.now(),
-      isSystem: true,
-      aiName: null,
-      lang: locale.value,
-    }
+    const message = createSystemMessage(
+      getLangKey(locale.value) === 'zh' ? '对话历史已清空' : 'Chat history cleared',
+    )
     messages.value.push(message)
     scrollToBottom()
   }
 }
 
+// ==================== 语言切换 ====================
+/**
+ * 添加语言切换提示消息
+ */
+function addLanguageSwitchMessage(lang) {
+  const langKey = getLangKey(lang)
+  const config = roleConfig.value[langKey] || roleConfig.value.en
+
+  const message = createSystemMessage(
+    langKey === 'zh'
+      ? `语言已切换到中文，AI角色已切换为${config.name}`
+      : `Language switched to English, AI role changed to ${config.name}`,
+    { lang: langKey },
+  )
+  messages.value.push(message)
+  scrollToBottom()
+}
+
+// ==================== 生命周期和监听器 ====================
+/**
+ * 组件挂载时初始化
+ */
 onMounted(() => {
   loadSettings()
   scrollToBottom()
 })
 
+/**
+ * 监听语言切换
+ */
 watch(
   locale,
   (newLang, oldLang) => {
     console.log('语言切换:', oldLang, '→', newLang)
-
-    const getLangKey = (lang) => {
-      if (!lang) return 'en'
-      return lang === 'zh' || lang === 'zh-CN' ? 'zh' : 'en'
-    }
 
     const newLangKey = getLangKey(newLang)
     const newConfig = roleConfig.value[newLangKey] || roleConfig.value.en
@@ -369,31 +481,10 @@ watch(
     }
 
     aiName.value = newConfig.name
-
     addLanguageSwitchMessage(newLangKey)
   },
   { immediate: true },
 )
-
-function addLanguageSwitchMessage(lang) {
-  const langKey = lang === 'zh' || lang === 'zh-CN' ? 'zh' : 'en'
-  const config = roleConfig.value[langKey] || roleConfig.value.en
-
-  const message = {
-    id: crypto?.randomUUID?.() || String(Date.now()),
-    role: 'system',
-    content:
-      langKey === 'zh'
-        ? `语言已切换到中文，AI角色已切换为${config.name}`
-        : `Language switched to English, AI role changed to ${config.name}`,
-    ts: Date.now(),
-    isSystem: true,
-    aiName: null,
-    lang: langKey,
-  }
-  messages.value.push(message)
-  scrollToBottom()
-}
 </script>
 
 <template>
@@ -404,33 +495,17 @@ function addLanguageSwitchMessage(lang) {
         <div class="subtitle">{{ t('app.subtitle') }}</div>
       </div>
       <div class="topbar-actions">
-        <div class="lang-toggle">
-          <div
-            class="toggle-switch"
-            :class="{ 'en-mode': locale === 'en' }"
-            @click="toggleLanguage"
-            role="switch"
-            :aria-checked="locale === 'en'"
-            :title="locale === 'zh' ? '切换到英文' : 'Switch to Chinese'"
-          >
-            <div class="toggle-track">
-              <span class="toggle-label zh">中</span>
-              <span class="toggle-label en">EN</span>
-            </div>
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
-        <button
-          class="btn btn-ghost"
-          type="button"
+        <SlideSwitch :toggleLanguage="toggleLanguage" v-model:locale="locale" />
+        <Button
+          variant="ghost"
           @click="clearChatHistory(true)"
           :title="locale === 'zh' ? '清空对话历史' : 'Clear chat history'"
         >
           {{ locale === 'zh' ? '清空' : 'Clear' }}
-        </button>
-        <button class="btn btn-ghost" type="button" @click="openSettings">
+        </Button>
+        <Button variant="ghost" @click="openSettings">
           {{ t('topbar.settings') }}
-        </button>
+        </Button>
       </div>
     </header>
 
@@ -455,85 +530,22 @@ function addLanguageSwitchMessage(lang) {
         :placeholder="t('chat.inputPlaceholder')"
         @keydown="onKeydown"
       />
-      <button class="btn btn-primary" type="button" :disabled="!canSend" @click="send">
+      <Button variant="primary" :disabled="!canSend" @click="send">
         {{ ui.sending ? t('chat.sending') : t('chat.send') }}
-      </button>
+      </Button>
     </footer>
 
     <!-- 设置弹窗 -->
-    <teleport to="body">
-      <div v-if="ui.settingsOpen" class="modal-backdrop" @click.self="closeSettings">
-        <div class="modal" role="dialog" aria-modal="true" aria-label="设置">
-          <div class="modal-header">
-            <div class="modal-title">{{ t('settings.title') }}</div>
-            <button class="btn btn-ghost" type="button" @click="closeSettings">
-              {{ t('settings.close') }}
-            </button>
-          </div>
-          <div class="modal-body">
-            <label class="field">
-              <div class="label">{{ t('settings.appId') }}</div>
-              <input
-                v-model="settings.appId"
-                class="text"
-                :placeholder="t('settings.appIdPlaceholder')"
-              />
-            </label>
-            <label class="field">
-              <div class="label">{{ t('settings.apiSecret') }}</div>
-              <input
-                v-model="settings.apiSecret"
-                class="text"
-                :placeholder="t('settings.apiSecretPlaceholder')"
-              />
-            </label>
-            <label class="field">
-              <div class="label">{{ t('settings.apiKey') }}</div>
-              <input
-                v-model="settings.apiKey"
-                class="text"
-                :placeholder="t('settings.apiKeyPlaceholder')"
-              />
-            </label>
-
-            <label class="field">
-              <div class="label">{{ t('settings.nickname') }}</div>
-              <input
-                v-model="aiName"
-                class="text"
-                :placeholder="t('settings.nicknamePlaceholder')"
-              />
-            </label>
-
-            <label class="field">
-              <div class="label">{{ t('settings.systemPromptLabel') }}</div>
-              <textarea
-                v-model="settings.systemPrompt"
-                class="text area"
-                rows="3"
-                :placeholder="t('settings.systemPromptPlaceholder')"
-              />
-              <button
-                class="btn btn-ghost reset-btn"
-                type="button"
-                @click="resetToDefaultRole"
-                :title="locale === 'zh' ? '重置为默认角色设定' : 'Reset to default role'"
-              >
-                {{ locale === 'zh' ? '重置为默认角色' : 'Reset to Default Role' }}
-              </button>
-            </label>
-          </div>
-          <div class="modal-footer">
-            <button class="btn" type="button" @click="closeSettings">
-              {{ t('settings.cancel') }}
-            </button>
-            <button class="btn btn-primary" type="button" @click="saveSettings">
-              {{ t('settings.save') }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </teleport>
+    <SettingsModal
+      v-model="ui.settingsOpen"
+      :settings="settings"
+      v-model:aiName="aiName"
+      :locale="locale"
+      :t="t"
+      @save="saveSettings"
+      @close="closeSettings"
+      @reset="resetToDefaultRole"
+    />
   </div>
 </template>
 
@@ -634,208 +646,4 @@ function addLanguageSwitchMessage(lang) {
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
-.btn {
-  height: 44px;
-  padding: 0 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  background: rgba(255, 255, 255, 0.9);
-  cursor: pointer;
-  user-select: none;
-}
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.btn-ghost {
-  background: transparent;
-}
-.btn-primary {
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
-  border-color: rgba(37, 99, 235, 0.25);
-  color: #fff;
-}
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(2, 6, 23, 0.45);
-  display: grid;
-  place-items: center;
-  padding: 18px;
-}
-.modal {
-  width: min(560px, 100%);
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 18px;
-  box-shadow: 0 30px 90px rgba(2, 6, 23, 0.25);
-  overflow: hidden;
-}
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 14px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
-.modal-title {
-  font-weight: 700;
-}
-.modal-body {
-  padding: 14px;
-  width: 100%;
-  display: grid;
-  gap: 12px;
-}
-.field {
-  width: 100%;
-}
-.field .label {
-  width: 90%;
-  font-size: 12px;
-  color: rgba(15, 23, 42, 0.7);
-  margin-bottom: 6px;
-}
-.text {
-  width: 90%;
-  min-height: 42px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  outline: none;
-  background: rgba(255, 255, 255, 0.9);
-}
-.text:focus {
-  border-color: rgba(37, 99, 235, 0.65);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
-}
-.area {
-  resize: vertical;
-}
-.hint {
-  width: 90%;
-  margin-top: 4px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(37, 99, 235, 0.06);
-  border: 1px solid rgba(37, 99, 235, 0.14);
-}
-.hint-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: rgba(15, 23, 42, 0.75);
-  margin-bottom: 4px;
-}
-.hint-text {
-  font-size: 12px;
-  color: rgba(15, 23, 42, 0.7);
-  line-height: 1.5;
-}
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 14px;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-.reset-btn {
-  margin-top: 8px;
-  height: 32px;
-  font-size: 12px;
-  padding: 0 10px;
-  border-color: rgba(239, 68, 68, 0.25);
-  color: #dc2626;
-}
-
-.reset-btn:hover {
-  background: rgba(239, 68, 68, 0.05);
-  border-color: rgba(239, 68, 68, 0.4);
-}
-
-/* 语言切换滑块样式 */
-.lang-toggle {
-  display: flex;
-  align-items: center;
-}
-
-.toggle-switch {
-  position: relative;
-  width: 64px;
-  height: 32px;
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
-  border-radius: 50px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.2);
-  overflow: hidden;
-}
-
-.toggle-switch.en-mode {
-  background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%);
-}
-
-.toggle-track {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10px;
-}
-
-.toggle-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: white;
-  transition: opacity 0.3s ease;
-  user-select: none;
-  z-index: 1;
-}
-
-.toggle-label.zh {
-  opacity: 1;
-}
-
-.toggle-switch.en-mode .toggle-label.zh {
-  opacity: 0.6;
-}
-
-.toggle-label.en {
-  opacity: 0.6;
-}
-
-.toggle-switch.en-mode .toggle-label.en {
-  opacity: 1;
-}
-
-.toggle-thumb {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 24px;
-  height: 24px;
-  background: white;
-  border-radius: 50%;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s ease;
-  z-index: 2;
-}
-
-.toggle-switch.en-mode .toggle-thumb {
-  transform: translateX(32px);
-}
-
-/* 悬停效果 */
-.toggle-switch:hover {
-  transform: scale(1.05);
-}
-
-.toggle-switch:active {
-  transform: scale(0.95);
-}
 </style>
